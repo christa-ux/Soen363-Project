@@ -5,9 +5,11 @@ Christa Abou-Arraje (40226631)
 
 Despina Koulisakis (40190212)
 
+Nour Hassoun (40233077)
+
 Sarah Abellard 
 
-Nour Hassoun
+
 
 ## Dependencies to install for python:
 
