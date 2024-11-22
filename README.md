@@ -11,6 +11,8 @@ Sarah Abellard (40184667)
 
 
 
-## Dependencies to install for python:
+### Dependencies to install for python:  
 
 `pip install mysql-connector-python spotipy requests beautifulsoup4`
+
+
