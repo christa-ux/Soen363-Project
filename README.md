@@ -3,7 +3,7 @@
 ## Team members: 
 Christa Abou-Arraje (40226631)
 
-Despina Kouliakis
+Despina Koulisakis (40190212)
 
 Sarah Abellard 
 
