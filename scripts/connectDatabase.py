@@ -1,3 +1,4 @@
+#this script populates the Tracks table
 import os
 import mysql.connector
 import spotipy
