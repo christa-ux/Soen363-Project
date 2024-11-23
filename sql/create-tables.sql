@@ -1,14 +1,5 @@
-CREATE TABLE Tracks (
-    track_id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    popularity INT,
-    duration_ms INT,
-    release_date DATE
-
-);
-
 CREATE TABLE Artists (
-    artist_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
+    artist_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     image_url VARCHAR(255),
     spotify_url VARCHAR(255),
@@ -25,7 +16,7 @@ CREATE TABLE AudiobookArtists (
 
 
 CREATE TABLE MusicianArtists (
-    artist_id BIGINT UNSIGNED PRIMARY KEY, 
+    artist_id BIGINT UNSIGNED PRIMARY KEY,
     popularity INT,
     followers INT,
     FOREIGN KEY (artist_id) REFERENCES Artists(artist_id)
@@ -33,11 +24,11 @@ CREATE TABLE MusicianArtists (
 
 
 CREATE TABLE Audiobooks (
-    audiobook_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, 
+    audiobook_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     total_chapters INT,
-    artist_id BIGINT UNSIGNED, 
+    artist_id BIGINT UNSIGNED,
     FOREIGN KEY (artist_id) REFERENCES AudiobookArtists(artist_id)
 );
 
@@ -60,21 +51,22 @@ CREATE TABLE Audiobook_Owns (
     FOREIGN KEY (artist_id) REFERENCES AudiobookArtists(artist_id)
 );
 
-CREATE TABLE Track_Owns (
-    track_id BIGINT UNSIGNED,
-    artist_id BIGINT UNSIGNED,
-    PRIMARY KEY (track_id, artist_id),
-    FOREIGN KEY (track_id) REFERENCES Tracks(track_id),
-    FOREIGN KEY (artist_id) REFERENCES MusicianArtists(artist_id)
+CREATE TABLE Countries (
+    country_id INT AUTO_INCREMENT PRIMARY KEY,
+    country_name VARCHAR(100) NOT NULL
 );
 
+INSERT INTO Countries (country_name) VALUES 
+    ('United States'),
+    ('United Kingdom'),
+    ('Belgium'),
+    ('France'),
+    ('Canada');
 
-
--- DELETE FROM Artists
--- ORDER BY artist_id ASC
--- LIMIT 50;
-
-
--- UPDATE Artists
--- SET artist_id = artist_id - 50
--- WHERE artist_id BETWEEN 51 AND 110;
+CREATE TABLE Songs (
+    song_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    artist_id BIGINT UNSIGNED,
+    chart_rank INT,
+    FOREIGN KEY (artist_id) REFERENCES Artists(artist_id)
+);
