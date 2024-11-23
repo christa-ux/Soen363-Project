@@ -1,114 +1,133 @@
-# import mysql.connector
-# import spotipy
-# from spotipy.oauth2 import SpotifyClientCredentials
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import mysql.connector
+from datetime import datetime
+import time
 
-# SPOTIPY_CLIENT_ID = '8bea9279cb4c409f894b175789994e97'
-# SPOTIPY_CLIENT_SECRET = 'e66e7d7775174b5d8df045491e428abb'
+def connect_to_database():
+    """Establish connection to MySQL database"""
+    return mysql.connector.connect(
+        host="localhost",
+        user="christa",
+        password="sdcn2024",
+        database="global_music_db"
+    )
 
-# DB_CONNECTION = {
-#     'database': 'global_music_db',
-#     'user': 'christa',
-#     'password': 'sdcn2024',
-#     'host': 'localhost'
-# }
+def get_spotify_client():
+    """Initialize Spotify client with credentials"""
+    client_credentials_manager = SpotifyClientCredentials(
+        client_id='8bea9279cb4c409f894b175789994e97',
+        client_secret='e66e7d7775174b5d8df045491e428abb'
+    )
+    return spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
-# def get_spotify_client():
-#     """Initialize Spotify client"""
-#     client_credentials_manager = SpotifyClientCredentials(
-#         client_id=SPOTIPY_CLIENT_ID, 
-#         client_secret=SPOTIPY_CLIENT_SECRET
-#     )
-#     return spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+def fetch_audiobooks():
+    """Fetch audiobook information from the Audiobooks table"""
+    conn = connect_to_database()
+    cursor = conn.cursor(dictionary=True)
+   
+    cursor.execute("""
+        SELECT audiobook_id,  name
+        FROM Audiobooks 
+    """)
+    audiobooks = cursor.fetchall()
+   
+    cursor.close()
+    conn.close()
+    return audiobooks
 
-# def get_tracks_for_audiobook(sp, audiobook_id):
-#     """Fetch tracks (chapters) for a specific audiobook (album) from Spotify"""
-#     try:
-#         tracks = []
+def find_spotify_audiobook(sp, audiobook_name):
+    """Search for an audiobook on Spotify and return its ID"""
+    try:
         
-#         # Fetch album details (tracks) for the audiobook
-#         album = sp.album(audiobook_id)
-#         if 'tracks' in album:
-#             for track in album['tracks']['items']:
-#                 tracks.append({
-#                     'chapter_number': track['track_number'],
-#                     'duration_ms': track['duration_ms'],
-#                     'audio_preview_url': track.get('preview_url', None),  # Make sure to set None if missing
-#                     'release_date': track.get('album', {}).get('release_date', None)  # Handle missing or None
-#                 })
+        query = f"audiobook:{audiobook_name}" 
+        results = sp.search(q=query, type='show', limit=1)
+       
+        if results['shows']['items']:
+            show=results['shows']['items'][0]
+            show_id=show['id']
+       
+            episodes=sp.show_episodes(show_id)
+            return show_id, episodes
         
-#         return tracks
+        return None, None
+       
+    except spotipy.SpotifyException as e:
+        print(f"Spotify API error while searching for {audiobook_name}: {e}")
+        return None, None
 
-#     except Exception as e:
-#         print(f"Error fetching tracks for audiobook {audiobook_id}: {e}")
-#         return []
+def store_chapters(audiobook_id, episodes):
+    """Fetch chapters for an audiobook and store them in the database"""
+    try:
+        
+       
+        conn = connect_to_database()
+        cursor = conn.cursor()
+       
+        insert_query = """
+            INSERT INTO Chapters
+            (audiobook_id, chapter_number, duration_ms, audio_preview_url, release_date)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+       
+        total_chapters=len(episodes['items'])
 
-# def populate_chapters():
-#     """Populate Chapters table with chapter details from Audiobooks"""
-#     conn = mysql.connector.connect(**DB_CONNECTION)
-#     cursor = conn.cursor(dictionary=True)
-    
-#     try:
-#         # Get all audiobooks from the Audiobooks table
-#         cursor.execute("""
-#             SELECT audiobook_id, name
-#             FROM Audiobooks
-#         """)
-        
-#         audiobooks = cursor.fetchall()
-        
-#         if not audiobooks:
-#             print("No audiobooks found in Audiobooks table.")
-#             return
-        
-#         # Initialize Spotify client
-#         sp = get_spotify_client()
-        
-#         # Process each audiobook
-#         for audiobook in audiobooks:
-#             print(f"Processing chapters for audiobook: {audiobook['name']}")
-            
-#             # Get tracks (chapters) for this audiobook
-#             tracks = get_tracks_for_audiobook(sp, audiobook['audiobook_id'])
-            
-#             # Insert each track (chapter) into the Chapters table
-#             for track in tracks:
-#                 # Ensure release_date is a string or None (use default if missing)
-#                 release_date = track['release_date'] if track['release_date'] else None
-#                 audio_preview_url = track['audio_preview_url'] if track['audio_preview_url'] else None
-                
-#                 cursor.execute("""
-#                     SELECT chapter_id
-#                     FROM Chapters
-#                     WHERE audiobook_id = %s AND chapter_number = %s
-#                 """, (audiobook['audiobook_id'], track['chapter_number']))
-                
-#                 if not cursor.fetchone():  # Check if the chapter already exists
-#                     cursor.execute("""
-#                         INSERT INTO Chapters 
-#                         (audiobook_id, chapter_number, duration_ms, audio_preview_url, release_date)
-#                         VALUES (%s, %s, %s, %s, %s)
-#                     """, (
-#                         audiobook['audiobook_id'],
-#                         track['chapter_number'],
-#                         track['duration_ms'],
-#                         audio_preview_url,  # Pass as None if missing
-#                         release_date        # Pass as None if missing
-#                     ))
-#                     print(f"Added chapter {track['chapter_number']} for audiobook: {audiobook['name']}")
-        
-#         conn.commit()
-#         print("Successfully populated Chapters table")
-        
-#     except Exception as e:
-#         print(f"Error populating Chapters: {e}")
-#         conn.rollback()
-        
-#     finally:
-#         cursor.close()
-#         conn.close()
+       
+        for idx, episode in enumerate(episodes['items'], 1):
+            chapter_data = (
+                audiobook_id,
+                idx,
+                episode['duration_ms'],
+                episode.get('audio_preview_url'),
+                datetime.strptime(episode['release_date'], '%Y-%m-%d').date()
+            )
+           
+            try:
+                cursor.execute(insert_query, chapter_data)
+                conn.commit()
+                print(f"Successfully inserted chapter {idx} for audiobook {audiobook_id}")
+            except mysql.connector.Error as err:
+                print(f"Error inserting chapter {idx} for audiobook {audiobook_id}: {err}")
+                conn.rollback()
+       
+     
+        update_query = """
+            UPDATE Audiobooks
+            SET total_chapters = %s
+            WHERE audiobook_id = %s
+        """
+        cursor.execute(update_query, total_chapters, audiobook_id)
+        conn.commit()
+       
+        cursor.close()
+        conn.close()
+       
+    except Exception as e:
+       print (f"unexpected error storing chapters for audiobook {audiobook_id}: {e}")
 
-# def main():
-#     populate_chapters()
+def main():
+  
+    sp = get_spotify_client()
+   
+   
+    audiobooks = fetch_audiobooks()
+   
 
-# if __name__ == '__main__':
-#     main()
+    for audiobook in audiobooks:
+        print(f"Processing audiobook: {audiobook['name']}")
+       
+      
+        show_id, episodes = find_spotify_audiobook(sp, audiobook['name'])
+       
+        if show_id and episodes:
+            print(f"Found Spotify ID: {show_id}")
+            store_chapters(audiobook['audiobook_id'], episodes)
+            print(f"Completed processing audiobook: {audiobook['name']}\n")
+        else:
+            print(f"Could not find audiobook '{audiobook['name']}' on Spotify\n")
+       
+        # Add a small delay to avoid hitting API rate limits
+        time.sleep(1)
+
+if __name__ == "__main__":
+    main()
